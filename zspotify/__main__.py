@@ -1,7 +1,4 @@
-try:
-    from .zspotify_api import ZSpotifyApi
-except ImportError:
-    from zspotify_api import ZSpotifyApi
+import respot
 
 from getpass import getpass
 import importlib.metadata as metadata
@@ -124,14 +121,13 @@ class ZSpotify:
         self.SANITIZE_CHARS = ["\\", "/", ":", "*", "?", "'", "<", ">", '"']
         self.SEPARATORS = [",", ";"]
         self.args = self.parse_args()
-        self.zs_api = ZSpotifyApi(
-            sanitize=self.SANITIZE_CHARS,
+        self.respot = respot.Respot(
             config_dir=self.args.config_dir,
-            music_format=self.args.audio_format,
             force_premium=self.args.force_premium,
-            anti_ban_wait_time=self.args.antiban_time,
             credentials=self.args.credentials_file,
-            limit=self.args.limit)
+            output_format=self.args.audio_format,
+            antiban_wait_time=self.args.antiban_time)
+        self.search_limit = self.args.limit
 
         # User defined directories
         self.config_dir = Path(self.args.config_dir)
@@ -229,7 +225,7 @@ class ZSpotify:
             type=int)
         parser.add_argument(
             "--limit",
-            help="limit",
+            help="Search limit",
             default=_LIMIT_RESULTS, type=int)
         parser.add_argument(
             "-f", "--force-premium",
@@ -308,13 +304,13 @@ class ZSpotify:
 
     def login(self):
         """Login to Spotify"""
-        logged_in = self.zs_api.login()
-        if logged_in:
-            return True
-        print("Login to Spotify")
-        username = input("Username: ")
-        password = getpass()
-        return self.zs_api.login(username, password)
+        while not self.respot.is_authenticated():
+            print("Login to Spotify")
+            username = input("Username: ")
+            password = getpass("Password: ")
+            if self.respot.is_authenticated(username, password):
+                return True
+        return True
 
     def set_audio_tags(self,
                        filename,
@@ -501,7 +497,7 @@ class ZSpotify:
             print(f"Skipping {track_id} - Already Downloaded")
             return True
 
-        track = self.zs_api.get_audio_info(track_id)
+        track = self.respot.request.get_track_info(track_id)
 
         if track is None:
             print(f"Skipping {track_id} - Could not get track info")
@@ -526,25 +522,26 @@ class ZSpotify:
             print(f"Skipping {filename} - Already downloaded")
             return True
         downloader = \
-            Thread(target=self.zs_api.download_audio,
+            Thread(target=self.respot.download,
                    args=(track_id, fullpath, True))
         downloader.start()
     
-        while not self.zs_api.progress:
+        while not self.respot.progress_bar:
             time.sleep(0.1)
         with tqdm(
                 desc=filename,
-                total=self.zs_api.progress['total'],
+                total=self.respot.progress_bar['total'],
                 unit="B",
                 unit_scale=True,
                 unit_divisor=1024,
         ) as progress_bar:
-            progress = self.zs_api.progress
+            progress = self.respot.progress_bar
             while progress:
                 progress_bar.update(progress['downloaded'] - progress_bar.n)
                 time.sleep(0.1)
-                progress = self.zs_api.progress
+                progress = self.respot.progress_bar
             progress_bar.update(progress_bar.total - progress_bar.n)
+
         print(f"Converting {filename}")
         self.archive.add(track_id,
                          artist=artist_name,
@@ -566,11 +563,11 @@ class ZSpotify:
         print(f"Finished downloading {filename}")
 
     def download_playlist(self, playlist_id):
-        playlist = self.zs_api.get_playlist_info(playlist_id)
+        playlist = self.respot.request.get_playlist_info(playlist_id)
         if not playlist:
             print("Playlist not found")
             return False
-        songs = self.zs_api.get_playlist_songs(playlist_id)
+        songs = self.respot.request.get_playlist_songs(playlist_id)
         if not songs:
             print("Playlist is empty")
             return False
@@ -584,7 +581,7 @@ class ZSpotify:
         print(f"Finished downloading {playlist['name']} playlist")
 
     def download_all_user_playlists(self):
-        playlists = self.zs_api.get_all_user_playlists()
+        playlists = self.respot.request.get_all_user_playlists()
         if not playlists:
             print("No playlists found")
             return False
@@ -594,7 +591,7 @@ class ZSpotify:
         print("Finished downloading all user playlists")
 
     def download_select_user_playlists(self):
-        playlists = self.zs_api.get_all_user_playlists()
+        playlists = self.respot.request.get_all_user_playlists()
         if not playlists:
             print("No playlists found")
             return False
@@ -637,11 +634,11 @@ class ZSpotify:
         print("Finished downloading selected playlists")
 
     def download_album(self, album_id):
-        album = self.zs_api.get_album_info(album_id)
+        album = self.respot.request.get_album_info(album_id)
         if not album:
             print("Album not found")
             return False
-        songs = self.zs_api.get_album_songs(album_id)
+        songs = self.respot.request.get_album_songs(album_id)
         if not songs:
             print("Album is empty")
             return False
@@ -673,11 +670,11 @@ class ZSpotify:
         return True
 
     def download_artist(self, artist_id):
-        artist = self.zs_api.get_artist_info(artist_id)
+        artist = self.respot.request.get_artist_info(artist_id)
         if not artist:
             print("Artist not found")
             return False
-        albums = self.zs_api.get_artist_albums(artist_id)
+        albums = self.respot.request.get_artist_albums(artist_id)
         if not albums:
             print("Artist has no albums")
             return False
@@ -688,7 +685,7 @@ class ZSpotify:
         return True
 
     def download_liked_songs(self):
-        songs = self.zs_api.get_liked_tracks()
+        songs = self.respot.request.get_liked_tracks()
         if not songs:
             print("No liked songs found")
             return False
@@ -700,7 +697,7 @@ class ZSpotify:
         return True
 
     def download_by_url(self, url):
-        parsed_url = self.zs_api.parse_url(url)
+        parsed_url = respot.RespotUtils.parse_url(url)
         if parsed_url['track']:
             ret = self.download_track(parsed_url['track'])
         elif parsed_url['playlist']:
@@ -723,7 +720,7 @@ class ZSpotify:
             print(f"Skipping {episode_id} - Already Downloaded")
             return True
 
-        episode = self.zs_api.get_episode_info(episode_id)
+        episode = self.respot.request.get_episode_info(episode_id)
         if not episode:
             print("Episode not found")
             return False
@@ -751,29 +748,28 @@ class ZSpotify:
             print(f"Skipping {filename} - Already downloaded")
             return True
 
-        # self.zs_api.download_audio(episode_id, fullpath, True)
         downloader = \
-            Thread(target=self.zs_api.download_audio,
+            Thread(target=self.respot.download,
                    args=(episode_id, fullpath, True))
         downloader.start()
 
         _filename = filename[:50]
         filename = _filename
 
-        while not self.zs_api.progress:
+        while not self.respot.progress_bar:
             time.sleep(0.1)
         with tqdm(
                 desc=filename,
-                total=self.zs_api.progress['total'],
+                total=self.respot.progress_bar['total'],
                 unit="B",
                 unit_scale=True,
                 unit_divisor=1024,
         ) as progress_bar:
-            progress = self.zs_api.progress
+            progress = self.respot.progress_bar
             while progress:
                 progress_bar.update(progress['downloaded'] - progress_bar.n)
                 time.sleep(0.1)
-                progress = self.zs_api.progress
+                progress = self.respot.progress_bar
             progress_bar.update(progress_bar.total - progress_bar.n)
         print(f"Converting {episode['audio_name']} episode")
         downloader.join()
@@ -792,11 +788,11 @@ class ZSpotify:
         print(f"Finished downloading {episode['audio_name']} episode")
 
     def download_all_show_episodes(self, show_id):
-        show = self.zs_api.get_show_info(show_id)
+        show = self.respot.request.get_show_info(show_id)
         if not show:
             print("Show not found")
             return False
-        episodes = self.zs_api.get_show_episodes(show_id)
+        episodes = self.respot.request.get_show_episodes(show_id)
         if not episodes:
             print("Show has no episodes")
             return False
@@ -807,7 +803,7 @@ class ZSpotify:
 
     def search(self, query):
         # TODO: Add search by artist, album, playlist, etc.
-        results = self.zs_api.search(query)
+        results = self.respot.request.search(query, self.search_limit)
         if not results:
             print("No results found")
             return False
