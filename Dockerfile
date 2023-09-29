@@ -1,4 +1,4 @@
-FROM python:3.9-alpine as builder
+FROM python:3.11-alpine as builder
 
 WORKDIR /app
 
@@ -21,7 +21,7 @@ RUN mkdir -p /app/ffmpeg-deps \
     | grep -v 'ld-musl-x86_64.so.1' \
     | xargs -I '{}' cp -v '{}' .
 
-FROM python:3.9-alpine
+FROM python:3.11-alpine
 
 # Copy over ffmpeg and its dependencies
 COPY --from=builder /usr/bin/ffmpeg /usr/bin/ffmpeg
