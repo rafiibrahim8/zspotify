@@ -1,25 +1,18 @@
 from io import BytesIO
+from pathlib import Path
+import json
+import re
+import requests
+import time
+
 from librespot.audio.decoders import AudioQuality, VorbisOnlyAudioQuality
 from librespot.core import ApiClient, Session
 from librespot.metadata import TrackId, EpisodeId
 from pydub import AudioSegment
-from pathlib import Path
-
-import json
-import os
-import re
-import requests
-import shutil
-import time
 
 class Respot:
 
-    def __init__(self,
-                 config_dir,
-                 force_premium,
-                 credentials,
-                 output_format,
-                 antiban_wait_time):
+    def __init__(self, config_dir, force_premium, credentials, output_format, antiban_wait_time):
         self.config_dir = config_dir
         self.credentials = credentials
         self.force_premium = force_premium
@@ -78,29 +71,22 @@ class RespotAuth:
             self.refresh_token()
             self._check_premium()
             return True
-        # Assuming RuntimeError is raised in init_token() or check_premium()
         except RuntimeError:
             return False
 
     def _authenticate_with_user_pass(self, username, password):
         try:
-            self.session = Session.Builder().user_pass(
-                username, password).create()
+            self.session = Session.Builder().user_pass(username, password).create()
             self._persist_credentials_file()
             self._check_premium()
             return True
-        # Assuming RuntimeError is raised in refresh_token(), check_premium() or during session creation
         except RuntimeError:
             return False
 
     def refresh_token(self):
-        self.session = Session.Builder().stored_file(
-            stored_credentials=str(self.credentials)).create()
+        self.session = Session.Builder().stored_file(stored_credentials=str(self.credentials)).create()
         # Remove auto generated credentials.json
-        local_credentials = Path("credentials.json")
-        if local_credentials.exists():
-            local_credentials.unlink()
-
+        Path("credentials.json").unlink(missing_ok=True)
         self.token = self.session.tokens().get("user-read-email")
         self.token_your_libary = self.session.tokens().get("user-library-read")
         return (self.token, self.token_your_libary)
@@ -110,7 +96,8 @@ class RespotAuth:
         if not self.session:
             raise RuntimeError("You must login first")
 
-        if self.session.get_user_attribute("type") == "premium" or self.force_premium:
+        account_type = self.session.get_user_attribute("type")
+        if account_type == "premium" or self.force_premium:
             self.quality = AudioQuality.VERY_HIGH
             print("[ DETECTED PREMIUM ACCOUNT - USING VERY_HIGH QUALITY ]\n")
         else:
@@ -125,22 +112,15 @@ class RespotRequest:
         self.token_your_libary = auth.token_your_libary
     
     def authorized_get_request(self, url, token_bearer=None, retry_count=0, **kwargs):
-        """Makes a request to the Spotify API with the authorization token"""
         if retry_count > 3:
             raise RuntimeError("Connection Error: Too many retries")
         
-        if token_bearer is None:
-                token_bearer = self.token
-
+        token_bearer = token_bearer or self.token
         try:
-            response = requests.get(url,
-                                    headers={"Authorization": f"Bearer {token_bearer}"},
-                                    **kwargs)
+            response = requests.get(url, headers={"Authorization": f"Bearer {token_bearer}"}, **kwargs)
             if response.status_code == 401:
                 print("Token expired, refreshing...")
-                tokens = self.auth.refresh_token()
-                self.token = tokens[0]
-                self.token_your_libary = tokens[1]
+                self.token, self.token_your_libary = self.auth.refresh_token()
                 return self.authorized_get_request(url, token_bearer, retry_count + 1, **kwargs)
             return response
         except requests.exceptions.ConnectionError:
