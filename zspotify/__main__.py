@@ -9,9 +9,14 @@ import importlib.metadata as metadata
 
 from tqdm import tqdm
 
-from respot import Respot, RespotUtils
-from tagger import AudioTagger
-from utils import FormatUtils, Archive
+try:
+    from respot import Respot, RespotUtils
+    from tagger import AudioTagger
+    from utils import FormatUtils, Archive
+except ImportError:
+    from .respot import Respot, RespotUtils
+    from .tagger import AudioTagger
+    from .utils import FormatUtils, Archive
 
 _ANTI_BAN_WAIT_TIME = os.environ.get('ANTI_BAN_WAIT_TIME', 5)
 _ANTI_BAN_WAIT_TIME_ALBUMS = os.environ.get('ANTI_BAN_WAIT_TIME_ALBUMS', 30)

@@ -1,5 +1,9 @@
 # Changelog
 
+**v2.1.0 (29 Sep 2023)**
+- Use never python Docker image
+- Rewrite classes, separate functionality
+
 **v2.0.6 (31 Aug 2023)**
 - added singles to downloads 
 - fix artist albums tag for plex  
