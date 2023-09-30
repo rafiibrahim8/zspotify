@@ -14,27 +14,57 @@ from tqdm import tqdm
 
 class Respot:
     def __init__(
-        self, config_dir, force_premium, credentials, output_format, antiban_wait_time
+        self, config_dir, force_premium, credentials, audio_format, antiban_wait_time
     ):
         self.config_dir: Path = config_dir
         self.credentials: Path = credentials
         self.force_premium: bool = force_premium
-        self.output_format: str = output_format
+        self.audio_format: str = audio_format
         self.antiban_wait_time: int = antiban_wait_time
         self.auth: RespotAuth = RespotAuth(self.credentials, self.force_premium)
         self.request: RespotRequest = None
 
-    def is_authenticated(self, username=None, password=None):
+    def is_authenticated(self, username=None, password=None) -> bool:
         if self.auth.login(username, password):
             self.request = RespotRequest(self.auth)
             return True
         return False
 
-    def download(self, track_id, output_path, make_dirs=True):
+    def download(self, track_id, temp_path: Path, extension, make_dirs=True) -> str:
         handler = RespotTrackHandler(
-            self.auth, self.output_format, self.antiban_wait_time, self.auth.quality
+            self.auth, self.audio_format, self.antiban_wait_time, self.auth.quality
         )
-        handler.download_audio(track_id, output_path, make_dirs)
+        if make_dirs:
+            handler.create_out_dirs(temp_path.parent)
+
+        # Download the audio
+        filename = temp_path.stem
+        audio_bytes = handler.download_audio(track_id, filename)
+
+        if audio_bytes is None:
+            return ""
+
+        # Determine format of file downloaded
+        audio_bytes_format = handler.determine_file_extension(audio_bytes)
+
+        # Format handling
+        output_path = temp_path
+
+        if extension == audio_bytes_format:
+            print(f"Saving {output_path.stem} directly")
+            handler.bytes_to_file(audio_bytes, output_path)
+        elif extension == "source":
+            output_str = filename + "." + audio_bytes_format
+            output_path = temp_path.parent / output_str
+            print(f"Saving {filename} as {extension}")
+            handler.bytes_to_file(audio_bytes, output_path)
+        else:
+            output_str = filename + "." + extension
+            output_path = temp_path.parent / output_str
+            print(f"Converting {filename} to {extension}")
+            handler.convert_audio_format(audio_bytes, output_path)
+
+        return output_path
 
 
 class RespotAuth:
@@ -58,10 +88,10 @@ class RespotAuth:
             return False
 
     # librespot does not have a function to store credentials.json correctly
-    def _persist_credentials_file(self):
+    def _persist_credentials_file(self) -> None:
         Path("credentials.json").rename(self.credentials)
 
-    def _ensure_credentials_directory(self):
+    def _ensure_credentials_directory(self) -> None:
         self.credentials.parent.mkdir(parents=True, exist_ok=True)
 
     def _has_stored_credentials(self):
@@ -75,7 +105,7 @@ class RespotAuth:
         except RuntimeError:
             return False
 
-    def _authenticate_with_user_pass(self, username, password):
+    def _authenticate_with_user_pass(self, username, password) -> bool:
         try:
             self.session = Session.Builder().user_pass(username, password).create()
             self._persist_credentials_file()
@@ -84,7 +114,7 @@ class RespotAuth:
         except RuntimeError:
             return False
 
-    def refresh_token(self):
+    def refresh_token(self) -> (str, str):
         self.session = (
             Session.Builder()
             .stored_file(stored_credentials=str(self.credentials))
@@ -96,7 +126,7 @@ class RespotAuth:
         self.token_your_libary = self.session.tokens().get("user-library-read")
         return (self.token, self.token_your_libary)
 
-    def _check_premium(self):
+    def _check_premium(self) -> None:
         """If user has Spotify premium, return true"""
         if not self.session:
             raise RuntimeError("You must login first")
@@ -137,7 +167,7 @@ class RespotRequest:
                 url, token_bearer, retry_count + 1, **kwargs
             )
 
-    def get_track_info(self, track_id):
+    def get_track_info(self, track_id) -> dict:
         """Retrieves metadata for downloaded songs"""
         try:
             info = json.loads(
@@ -168,12 +198,8 @@ class RespotRequest:
                 "album_artist": info["tracks"][0]["album"]["artists"][0]["name"],
                 "album_name": info["tracks"][0]["album"]["name"],
                 "audio_name": info["tracks"][0]["name"],
-                "image_url": info["tracks"][0]["album"]["images"][img_index]["url"]
-                if img_index >= 0
-                else None,
-                "release_year": info["tracks"][0]["album"]["release_date"].split("-")[
-                    0
-                ],
+                "image_url": info["tracks"][0]["album"]["images"][img_index]["url"] if img_index >= 0 else None,
+                "release_year": info["tracks"][0]["album"]["release_date"].split("-")[0],
                 "disc_number": info["tracks"][0]["disc_number"],
                 "audio_number": info["tracks"][0]["track_number"],
                 "scraped_song_id": info["tracks"][0]["id"],
@@ -544,18 +570,19 @@ class RespotTrackHandler:
 
     def __init__(self, auth, audio_format, antiban_wait_time, quality):
         """
-        Initialises the track processor with necessary attributes.
-
         Args:
-            format (str): The desired format for the converted audio.
-            quality (str): The quality setting for the conversion (e.g., 'high', 'medium', 'low').
+            audio_format (str): The desired format for the converted audio.
+            quality (str): The quality setting of Spotify playback.
         """
         self.auth = auth
         self.format = audio_format
-        self.anti_ban_wait_time = antiban_wait_time
+        self.antiban_wait_time = antiban_wait_time
         self.quality = quality
 
-    def download_audio(self, track_id, output_path, make_dirs):
+    def create_out_dirs(self, parent_path) -> None:
+        parent_path.mkdir(parents=True, exist_ok=True)
+
+    def download_audio(self, track_id, filename) -> BytesIO:
         """Downloads raw song audio from Spotify"""
         # TODO: ADD disc_number IF > 1
 
@@ -565,19 +592,16 @@ class RespotTrackHandler:
                 stream = self.auth.session.content_feeder().load(
                     _track_id, VorbisOnlyAudioQuality(self.quality), False, None
                 )
-            except Exception as e:
-                if isinstance(e, ApiClient.StatusCodeException):
-                    _track_id = EpisodeId.from_base62(track_id)
-                    stream = self.auth.session.content_feeder().load(
-                        _track_id, VorbisOnlyAudioQuality(self.quality), False, None
-                    )
-                else:
-                    raise e
+            except ApiClient.StatusCodeException:
+                _track_id = EpisodeId.from_base62(track_id)
+                stream = self.auth.session.content_feeder().load(
+                    _track_id, VorbisOnlyAudioQuality(self.quality), False, None
+                )
 
             total_size = stream.input_stream.size
             downloaded = 0
             fail_count = 0
-            segments = []
+            audio_bytes = BytesIO()
             progress_bar = tqdm(total=total_size, unit="B", unit_scale=True)
 
             while downloaded < total_size:
@@ -594,33 +618,27 @@ class RespotTrackHandler:
 
                 downloaded += len(data)
                 progress_bar.update(len(data))
-                segments.append(data)
+                audio_bytes.write(data)
 
             progress_bar.close()
 
-            # Create output directories
-            _dirs_path = output_path.parent
-            if make_dirs:
-                _dirs_path.mkdir(parents=True, exist_ok=True)
-            elif not _dirs_path.exists():
-                raise FileNotFoundError(f"Directory {str(_dirs_path)} does not exist")
-
-            # Save raw audio as BytesIO object and convert from there
-            # TODO: Implement raw audio handler here
-            self._convert_audio_format(BytesIO(b"".join(segments)), output_path)
-
             # Sleep to avoid ban
-            time.sleep(self.anti_ban_wait_time)
+            time.sleep(self.antiban_wait_time)
 
-            return True
+            audio_bytes.seek(0)
+
+            return audio_bytes
+
         except Exception as e:
             print("###   download_track - FAILED TO DOWNLOAD   ###")
             print(e)
-            print(track_id, output_path)
-            return False
+            print(track_id, filename)
+            return None
 
-    def _convert_audio_format(self, audio_bytes: BytesIO, output_path):
+    def convert_audio_format(self, audio_bytes: BytesIO, output_path: Path) -> None:
         """Converts raw audio (ogg vorbis) to user specified format"""
+        # Make sure stream is at the start or else AudioSegment will act up
+        audio_bytes.seek(0)
 
         bitrate = "160k"
         if self.quality == AudioQuality.VERY_HIGH:
@@ -630,10 +648,30 @@ class RespotTrackHandler:
             output_path, format=self.format, bitrate=bitrate
         )
 
+    def bytes_to_file(self, audio_bytes: BytesIO, output_path: Path) -> None:
+        output_path.write_bytes(audio_bytes.getvalue())
+
+    @staticmethod
+    def determine_file_extension(audio_bytes: BytesIO) -> str:
+        """Get MIME type from BytesIO object"""
+        audio_bytes.seek(0)
+        magic_bytes = audio_bytes.read(16)
+
+        if magic_bytes.startswith(b'\xFF\xFB') or magic_bytes.startswith(b'\xFF\xFA'):
+            return 'wav'
+        elif b'RIFF' in magic_bytes and b'WAVE' in magic_bytes:
+            return 'wav'
+        elif magic_bytes.startswith(b'fLaC'):
+            return 'flac'
+        elif magic_bytes.startswith(b'OggS'):
+            return 'ogg'
+        else:
+            raise ValueError("The audio stream is malformed.")
+
 
 class RespotUtils:
     @staticmethod
-    def parse_url(search_input):
+    def parse_url(search_input) -> dict:
         """Determines type of audio from url"""
         pattern = r"intl-[^/]+/"
         search_input = re.sub(pattern, "", search_input)
@@ -744,12 +782,9 @@ class RespotUtils:
         }
 
     @staticmethod
-    def conv_artist_format(artists):
-        """Returns converted artist format"""
-        formatted = ""
-        for artist in artists:
-            formatted += artist + ", "
-        return formatted[:-2]
+    def conv_artist_format(artists: list) -> str:
+        """Returns string of artists separated by commas"""
+        return ", ".join(artists)
 
     @staticmethod
     def sanitize_data(value: str) -> str:

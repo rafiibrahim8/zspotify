@@ -4,7 +4,6 @@ import sys
 import time
 from getpass import getpass
 from pathlib import Path
-from threading import Thread
 import importlib.metadata as metadata
 
 try:
@@ -34,7 +33,7 @@ class ZSpotify:
             config_dir=self.args.config_dir,
             force_premium=self.args.force_premium,
             credentials=self.args.credentials_file,
-            output_format=self.args.audio_format,
+            audio_format=self.args.audio_format,
             antiban_wait_time=self.args.antiban_time,
         )
         self.search_limit = self.args.limit
@@ -133,9 +132,9 @@ class ZSpotify:
         parser.add_argument(
             "-af",
             "--audio-format",
-            help="Audio format to download the tracks",
+            help="Audio format to download the tracks. Use 'source' to preserve the source format without conversion.",
             default="mp3",
-            choices=["mp3", "ogg"],
+            choices=["mp3", "ogg", "source"],
         )
         parser.add_argument(
             "--album-in-filename",
@@ -214,21 +213,24 @@ class ZSpotify:
                 return selection.split(sep)
         return [selection]
 
-    def clear(self):
+    @staticmethod
+    def clear():
         """Clear the console window"""
         if os.name == "nt":
             os.system("cls")
         else:
             os.system("clear")
 
-    def antiban_wait(self, seconds=5):
+    @staticmethod
+    def antiban_wait(seconds=5):
         """Pause between albums for a set number of seconds"""
         for i in range(seconds)[::-1]:
             print(f"\rSleep for {i + 1} second(s)...", end="")
             time.sleep(1)
         print("\n")
 
-    def zfill(self, value, length=2):
+    @staticmethod
+    def zfill(value, length=2):
         """Returns fill the strings with zeros"""
         return str(value).zfill(length)
 
@@ -242,59 +244,51 @@ class ZSpotify:
                 return True
         return True
 
+    @staticmethod
+    def shorten_filename(filename, artist_name, audio_name, max_length=50):
+        if len(filename) > max_length and len(artist_name) > (max_length // 2):
+            filename = filename.replace(artist_name, "Various Artists")
+        else:
+            excess_length = len(filename) - max_length
+            truncated_audio_name = audio_name[:-excess_length]
+            filename = filename.replace(audio_name, truncated_audio_name)
+
+        return filename
+
     def generate_filename(
         self,
         caller,
         audio_name,
         audio_number,
-        audio_format,
         artist_name,
         album_name,
-        path=None,
     ):
-        def shorten_filename(filename, artist_name, audio_name, max_length=50):
-            if len(filename) > max_length:
-                if len(artist_name) > (max_length // 2):
-                    filename = filename.replace(artist_name, "Various Artists")
-                else:
-                    excess_length = len(filename) - max_length
-                    truncated_audio_name = audio_name[:-excess_length]
-                    filename = filename.replace(audio_name, truncated_audio_name)
-
-            return filename
-
         if caller == "album":
-            base_path = path or self.music_dir
-            filename = f"{audio_number}. {audio_name}.{audio_format}"
+            filename = f"{audio_number}. {audio_name}"
 
             if self.album_in_filename:
                 filename = f"{album_name} " + filename
 
         elif caller == "playlist":
-            base_path = path or self.music_dir
-            filename = f"{audio_name}.{audio_format}"
+            filename = f"{audio_name}"
 
             if self.album_in_filename:
                 filename = f"{album_name} - " + filename
             filename = f"{artist_name} - " + filename
 
         elif caller == "show":
-            base_path = path or self.episodes_dir
-            filename = f"{audio_number}. {audio_name}.{audio_format}"
+            filename = f"{audio_number}. {audio_name}"
 
         elif caller == "episode":
-            base_path = path or self.episodes_dir
-            filename = f"{artist_name} - {audio_number}. {audio_name}.{audio_format}"
+            filename = f"{artist_name} - {audio_number}. {audio_name}"
 
         else:
-            base_path = path or self.music_dir
-            filename = f"{artist_name} - {audio_name}.{audio_format}"
+            filename = f"{artist_name} - {audio_name}"
 
-        filename = shorten_filename(filename, artist_name, audio_name)
+        filename = self.shorten_filename(filename, artist_name, audio_name)
         filename = RespotUtils.sanitize_data(filename)
-        fullpath = base_path / filename
 
-        return fullpath, filename
+        return filename
 
     def download_track(self, track_id, path=None, caller=None):
         if self.args.skip_downloaded and self.archive.exists(track_id):
@@ -311,44 +305,48 @@ class ZSpotify:
             print(f"Skipping {track['audio_name']} - Not Available")
             return True
 
-        audio_name = track["audio_name"]
-        audio_format = self.args.audio_format
-        audio_number = track["audio_number"]
-        artist_name = track["artist_name"]
-        album_artist = track["album_artist"]
-        album_name = track["album_name"]
+        audio_name = track.get("audio_name")
+        audio_number = track.get("audio_number")
+        artist_name = track.get("artist_name")
+        album_artist = track.get("album_artist")
+        album_name = track.get("album_name")
 
-        # Sanitize and set full path once
-        fullpath, filename = self.generate_filename(
+        filename = self.generate_filename(
             caller,
             audio_name,
             audio_number,
-            audio_format,
             artist_name,
             album_name,
-            path,
         )
 
-        if self.not_skip_existing and fullpath.exists():
-            print(f"Skipping {filename} - Already downloaded")
-            return True
-        downloader = Thread(
-            target=self.respot.download, args=(track_id, fullpath, True)
-        )
-        downloader.start()
+        base_path = path or self.music_dir
+        if caller == "show" or caller == "episode":
+            base_path = path or self.episodes_dir
+        temp_path = base_path / (filename + "." + self.args.audio_format)
 
-        print(f"Converting {filename}")
+        for ext in (".mp3", ".ogg"):
+            if self.not_skip_existing and (base_path / (filename + ext)).exists():
+                print(f"Skipping {filename + ext} - Already downloaded")
+                return True
+
+        output_path = self.respot.download(
+            track_id, temp_path, self.args.audio_format, True
+        )
+
+        if output_path == "":
+            return
+
         self.archive.add(
             track_id,
             artist=artist_name,
             track_name=audio_name,
-            fullpath=fullpath,
+            fullpath=output_path,
             audio_type="music",
         )
-        downloader.join()
+
         print(f"Setting audiotags {filename}")
         self.tagger.set_audio_tags(
-            fullpath,
+            output_path,
             artists=artist_name,
             name=audio_name,
             album_name=album_name,
@@ -511,76 +509,13 @@ class ZSpotify:
         elif parsed_url["artist"]:
             ret = self.download_artist(parsed_url["artist"])
         elif parsed_url["episode"]:
-            ret = self.download_episode(parsed_url["episode"])
+            ret = self.download_track(parsed_url["episode"])
         elif parsed_url["show"]:
             ret = self.download_all_show_episodes(parsed_url["show"])
         else:
             print("Invalid URL")
             return False
         return ret
-
-    def download_episode(self, episode_id, caller="episode"):
-        if self.args.skip_downloaded and self.archive.exists(episode_id):
-            print(f"Skipping {episode_id} - Already Downloaded")
-            return True
-
-        episode = self.respot.request.get_episode_info(episode_id)
-        if not episode:
-            print("Episode not found")
-            return False
-        print(f"Downloading {episode['audio_name']} episode")
-
-        if not episode["is_playable"]:
-            print(f"Skipping {episode['audio_name']} - Not Available")
-            return True
-
-        # Sanitize data beforehand
-        show_name = RespotUtils.sanitize_data(episode["show_name"])
-        audio_name = RespotUtils.sanitize_data(episode["audio_name"])
-        audio_format = self.args.audio_format
-
-        basepath = self.episodes_dir
-        filename = f"{show_name} - {audio_name}.{audio_format}"
-
-        if caller == "show":
-            basepath = self.episodes_dir / show_name
-            filename = f"{audio_name}.{audio_format}"
-
-        fullpath = basepath / filename
-
-        if self.not_skip_existing and fullpath.exists():
-            print(f"Skipping {filename} - Already downloaded")
-            return True
-
-        downloader = Thread(
-            target=self.respot.download, args=(episode_id, fullpath, True)
-        )
-        downloader.start()
-
-        _filename = filename[:50]
-        filename = _filename
-
-        while not self.respot.progress_bar:
-            time.sleep(0.1)
-        print(f"Converting {episode['audio_name']} episode")
-        downloader.join()
-        self.archive.add(
-            episode_id,
-            artist=episode["show_name"],
-            track_name=episode["audio_name"],
-            fullpath=fullpath,
-            audio_type="episode",
-        )
-        print(f"Setting audiotags {episode['audio_name']}")
-        self.tagger.set_audio_tags(
-            fullpath,
-            artists=episode["show_name"],
-            name=episode["audio_name"],
-            release_year=episode["release_year"],
-            track_id_str=episode_id,
-            image_url=episode["image_url"],
-        )
-        print(f"Finished downloading {episode['audio_name']} episode")
 
     def download_all_show_episodes(self, show_id):
         show = self.respot.request.get_show_info(show_id)
@@ -592,7 +527,7 @@ class ZSpotify:
             print("Show has no episodes")
             return False
         for episode in episodes:
-            self.download_episode(episode["id"], "show")
+            self.download_track(episode["id"], "show")
         print(f"Finished downloading {show['name']} show")
         return True
 
@@ -724,7 +659,7 @@ class ZSpotify:
                 if "spotify.com" in self.args.episode:
                     self.download_by_url(episode)
                 else:
-                    self.download_episode(episode)
+                    self.download_track(episode)
         elif self.args.full_show:
             for show in self.split_input(self.args.full_show):
                 if "spotify.com" in self.args.full_show:
