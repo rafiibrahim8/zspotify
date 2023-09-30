@@ -7,8 +7,6 @@ from pathlib import Path
 from threading import Thread
 import importlib.metadata as metadata
 
-from tqdm import tqdm
-
 try:
     from respot import Respot, RespotUtils
     from tagger import AudioTagger
@@ -18,9 +16,9 @@ except ImportError:
     from .tagger import AudioTagger
     from .utils import FormatUtils, Archive
 
-_ANTI_BAN_WAIT_TIME = os.environ.get('ANTI_BAN_WAIT_TIME', 5)
-_ANTI_BAN_WAIT_TIME_ALBUMS = os.environ.get('ANTI_BAN_WAIT_TIME_ALBUMS', 30)
-_LIMIT_RESULTS = os.environ.get('LIMIT_RESULTS', 10)
+_ANTI_BAN_WAIT_TIME = os.environ.get("ANTI_BAN_WAIT_TIME", 5)
+_ANTI_BAN_WAIT_TIME_ALBUMS = os.environ.get("ANTI_BAN_WAIT_TIME_ALBUMS", 30)
+_LIMIT_RESULTS = os.environ.get("LIMIT_RESULTS", 10)
 
 try:
     __version__ = metadata.version("zspotify")
@@ -29,7 +27,6 @@ except metadata.PackageNotFoundError:
 
 
 class ZSpotify:
-
     def __init__(self):
         self.SEPARATORS = [",", ";"]
         self.args = self.parse_args()
@@ -38,7 +35,8 @@ class ZSpotify:
             force_premium=self.args.force_premium,
             credentials=self.args.credentials_file,
             output_format=self.args.audio_format,
-            antiban_wait_time=self.args.antiban_time)
+            antiban_wait_time=self.args.antiban_time,
+        )
         self.search_limit = self.args.limit
 
         # User defined directories
@@ -61,108 +59,135 @@ class ZSpotify:
             "search",
             help="Searches for a track, album, artist or playlist or download by url",
             const=None,
-            nargs="?")
+            nargs="?",
+        )
         parser.add_argument(
             "-ap",
             "--all-playlists",
             help="Downloads all saved playlist from your library",
-            action="store_true")
+            action="store_true",
+        )
         parser.add_argument(
             "-sp",
             "--select-playlists",
             help="Downloads a saved playlist from your library",
-            action="store_true")
+            action="store_true",
+        )
         parser.add_argument(
-            "-ls", "--liked-songs",
+            "-ls",
+            "--liked-songs",
             help="Downloads your liked songs",
-            action="store_true")
+            action="store_true",
+        )
+        parser.add_argument("-pl", "--playlist", help="Download playlist by id or url")
         parser.add_argument(
-            "-pl", "--playlist",
-            help="Download playlist by id or url")
+            "-tr", "--track", help="Downloads a track from their id or url"
+        )
         parser.add_argument(
-            "-tr", "--track",
-            help="Downloads a track from their id or url")
+            "-al", "--album", help="Downloads an album from their id or url"
+        )
         parser.add_argument(
-            "-al", "--album",
-            help="Downloads an album from their id or url")
+            "-ar", "--artist", help="Downloads an artist from their id or url"
+        )
         parser.add_argument(
-            "-ar", "--artist",
-            help="Downloads an artist from their id or url")
+            "-ep", "--episode", help="Downloads a episode from their id or url"
+        )
         parser.add_argument(
-            "-ep", "--episode",
-            help="Downloads a episode from their id or url")
+            "-fs", "--full-show", help="Downloads all show episodes from id or url"
+        )
         parser.add_argument(
-            "-fs", "--full-show",
-            help="Downloads all show episodes from id or url")
-        parser.add_argument(
-            "-cd", "--config-dir",
+            "-cd",
+            "--config-dir",
             help="Folder to save the config files",
-            default=Path.home() / ".zspotify")
+            default=Path.home() / ".zspotify",
+        )
         parser.add_argument(
             "--archive",
             help="File to save the downloaded files",
-            default="archive.json")
+            default="archive.json",
+        )
         parser.add_argument(
-            "-d", "--download-dir",
+            "-d",
+            "--download-dir",
             help="Folder to save the downloaded files",
-            default=Path.home() / "Music")
+            default=Path.home() / "Music",
+        )
         parser.add_argument(
-            "-md", "--music-dir",
+            "-md",
+            "--music-dir",
             help="Folder to save the downloaded music files",
-            default=Path.home() / "Music" / "ZSpotify Music")
+            default=Path.home() / "Music" / "ZSpotify Music",
+        )
         parser.add_argument(
             "-pd",
             "--episodes-dir",
             help="Folder to save the downloaded episodes files",
-            default=Path.home() / "Music" / "ZSpotify Podcast")
+            default=Path.home() / "Music" / "ZSpotify Podcast",
+        )
         parser.add_argument(
-            "-v", "--version",
+            "-v",
+            "--version",
             help="Shows the current version of ZSpotify and exit",
-            action="store_true")
+            action="store_true",
+        )
         parser.add_argument(
-            "-af", "--audio-format",
+            "-af",
+            "--audio-format",
             help="Audio format to download the tracks",
-            default="mp3", choices=["mp3", "ogg"])
+            default="mp3",
+            choices=["mp3", "ogg"],
+        )
         parser.add_argument(
             "--album-in-filename",
             help="Adds the album name to the filename",
-            action="store_true", default=False)
+            action="store_true",
+            default=False,
+        )
         parser.add_argument(
             "--antiban-time",
             help="Time to wait between downloads to avoid Ban",
-            default=_ANTI_BAN_WAIT_TIME, type=int)
+            default=_ANTI_BAN_WAIT_TIME,
+            type=int,
+        )
         parser.add_argument(
             "--antiban-album",
             help="Time to wait between album downloads to avoid Ban",
             default=_ANTI_BAN_WAIT_TIME_ALBUMS,
-            type=int)
+            type=int,
+        )
         parser.add_argument(
-            "--limit",
-            help="Search limit",
-            default=_LIMIT_RESULTS, type=int)
+            "--limit", help="Search limit", default=_LIMIT_RESULTS, type=int
+        )
         parser.add_argument(
-            "-f", "--force-premium",
+            "-f",
+            "--force-premium",
             help="Force premium account",
-            action="store_true", default=False)
+            action="store_true",
+            default=False,
+        )
         parser.add_argument(
             "-ns",
             "--not-skip-existing",
             help="If flag setted NOT Skip existing already downloaded tracks",
             action="store_false",
-            default=True)
+            default=True,
+        )
         parser.add_argument(
             "-s",
             "--skip-downloaded",
             help="Skip already downloaded songs if exist in archive even it is doesn't exist in the filesystem",
             action="store_true",
-            default=False)
+            default=False,
+        )
         parser.add_argument(
             "-cf",
             "--credentials-file",
             help="File to save the credentials",
-            default=Path.home() / ".zspotify" / "credentials.json")
-        parser.add_argument("-bd", "--bulk-download",
-                            help="Bulk download from file with urls")
+            default=Path.home() / ".zspotify" / "credentials.json",
+        )
+        parser.add_argument(
+            "-bd", "--bulk-download", help="Bulk download from file with urls"
+        )
 
         return parser.parse_args()
 
@@ -196,16 +221,14 @@ class ZSpotify:
         else:
             os.system("clear")
 
-    def antiban_wait(self, seconds: int = 5):
-        """ Pause between albums for a set number of seconds """
+    def antiban_wait(self, seconds=5):
+        """Pause between albums for a set number of seconds"""
         for i in range(seconds)[::-1]:
-            print(
-                "\rWait for Next Download in %d second(s)..." %
-                (i + 1), end="")
+            print(f"\rSleep for {i + 1} second(s)...", end="")
             time.sleep(1)
         print("\n")
 
-    def zfill(self, value, length: int = 2):
+    def zfill(self, value, length=2):
         """Returns fill the strings with zeros"""
         return str(value).zfill(length)
 
@@ -219,7 +242,16 @@ class ZSpotify:
                 return True
         return True
 
-    def generate_filename(self, caller, audio_name, audio_number, audio_format, artist_name, album_name, path=None):
+    def generate_filename(
+        self,
+        caller,
+        audio_name,
+        audio_number,
+        audio_format,
+        artist_name,
+        album_name,
+        path=None,
+    ):
         def shorten_filename(filename, artist_name, audio_name, max_length=50):
             if len(filename) > max_length:
                 if len(artist_name) > (max_length // 2):
@@ -275,63 +307,58 @@ class ZSpotify:
             print(f"Skipping {track_id} - Could not get track info")
             return True
 
-        if not track['is_playable']:
+        if not track["is_playable"]:
             print(f"Skipping {track['audio_name']} - Not Available")
             return True
 
-        audio_name = track['audio_name']
+        audio_name = track["audio_name"]
         audio_format = self.args.audio_format
-        audio_number = track['audio_number']
-        artist_name = track['artist_name']
-        album_artist = track['album_artist']
-        album_name = track['album_name']
+        audio_number = track["audio_number"]
+        artist_name = track["artist_name"]
+        album_artist = track["album_artist"]
+        album_name = track["album_name"]
 
         # Sanitize and set full path once
-        fullpath, filename = self.generate_filename(caller, audio_name, audio_number, audio_format, artist_name,
-                                                    album_name, path)
+        fullpath, filename = self.generate_filename(
+            caller,
+            audio_name,
+            audio_number,
+            audio_format,
+            artist_name,
+            album_name,
+            path,
+        )
 
         if self.not_skip_existing and fullpath.exists():
             print(f"Skipping {filename} - Already downloaded")
             return True
-        downloader = \
-            Thread(target=self.respot.download,
-                   args=(track_id, fullpath, True))
+        downloader = Thread(
+            target=self.respot.download, args=(track_id, fullpath, True)
+        )
         downloader.start()
-    
-        while not self.respot.progress_bar:
-            time.sleep(0.1)
-        with tqdm(
-                desc=filename,
-                total=self.respot.progress_bar['total'],
-                unit="B",
-                unit_scale=True,
-                unit_divisor=1024,
-        ) as progress_bar:
-            progress = self.respot.progress_bar
-            while progress:
-                progress_bar.update(progress['downloaded'] - progress_bar.n)
-                time.sleep(0.1)
-                progress = self.respot.progress_bar
-            progress_bar.update(progress_bar.total - progress_bar.n)
 
         print(f"Converting {filename}")
-        self.archive.add(track_id,
-                         artist=artist_name,
-                         track_name=audio_name,
-                         fullpath=fullpath,
-                         audio_type="music")
+        self.archive.add(
+            track_id,
+            artist=artist_name,
+            track_name=audio_name,
+            fullpath=fullpath,
+            audio_type="music",
+        )
         downloader.join()
-        print(f"Set audiotags {filename}")
-        self.tagger.set_audio_tags(fullpath,
-                            artists=artist_name,
-                            name=audio_name,
-                            album_name=album_name,
-                            release_year=track['release_year'],
-                            disc_number=track['disc_number'],
-                            track_number=audio_number,
-                            album_artist=album_artist,
-                            track_id_str=track['scraped_song_id'],
-                            image_url=track['image_url'])
+        print(f"Setting audiotags {filename}")
+        self.tagger.set_audio_tags(
+            fullpath,
+            artists=artist_name,
+            name=audio_name,
+            album_name=album_name,
+            release_year=track["release_year"],
+            disc_number=track["disc_number"],
+            track_number=audio_number,
+            album_artist=album_artist,
+            track_id_str=track["scraped_song_id"],
+            image_url=track["image_url"],
+        )
         print(f"Finished downloading {filename}")
 
     def download_playlist(self, playlist_id):
@@ -343,13 +370,13 @@ class ZSpotify:
         if not songs:
             print("Playlist is empty")
             return False
-        playlist_name = playlist['name']
+        playlist_name = playlist["name"]
         if playlist_name == "":
             playlist_name = playlist_id
         print(f"Downloading {playlist_name} playlist")
         basepath = self.music_dir / RespotUtils.sanitize_data(playlist_name)
         for song in songs:
-            self.download_track(song['id'], basepath, "playlist")
+            self.download_track(song["id"], basepath, "playlist")
         print(f"Finished downloading {playlist['name']} playlist")
 
     def download_all_user_playlists(self):
@@ -357,8 +384,8 @@ class ZSpotify:
         if not playlists:
             print("No playlists found")
             return False
-        for playlist in playlists['playlists']:
-            self.download_playlist(playlist['id'])
+        for playlist in playlists["playlists"]:
+            self.download_playlist(playlist["id"])
             self.antiban_wait(self.antiban_album_time)
         print("Finished downloading all user playlists")
 
@@ -367,10 +394,11 @@ class ZSpotify:
         if not playlists:
             print("No playlists found")
             return False
-        for i, playlist in enumerate(playlists['playlists']):
+        for i, playlist in enumerate(playlists["playlists"]):
             print(f"    {i + 1}. {playlist['name']}")
 
-        print('''
+        print(
+            """
         > SELECT A PLAYLIST BY ID.
         > SELECT A RANGE BY ADDING A DASH BETWEEN BOTH ID's.
           For example, typing 10 to get one playlist or 10-20 to get
@@ -379,13 +407,14 @@ class ZSpotify:
           For example, typing 10,11,20 will select playlists
           10, 11 and 20 respectively.
           Typing 1,11-20 will select playlists 1 and 11-20 (inclusive).
-        ''')
+        """
+        )
         user_input = input("ID(s): ")
 
         # Parse user input
         user_formatted_input = set()
-        for part in user_input.split(','):
-            x = part.split('-')
+        for part in user_input.split(","):
+            x = part.split("-")
             user_formatted_input.update(range(int(x[0]), int(x[-1]) + 1))
         sorted(user_formatted_input)
 
@@ -393,12 +422,12 @@ class ZSpotify:
         invalid_ids = []
         playlist_ids = []
         for track_id in user_formatted_input:
-            if track_id > len(playlists['playlists']) or track_id < 1:
+            if track_id > len(playlists["playlists"]) or track_id < 1:
                 invalid_ids.append(track_id)
             else:
-                playlist_ids.append(playlists['playlists'][track_id - 1]['id'])
+                playlist_ids.append(playlists["playlists"][track_id - 1]["id"])
         if invalid_ids:
-            print(f'{invalid_ids} do not exist, downloading the rest')
+            print(f"{invalid_ids} do not exist, downloading the rest")
 
         for playlist in playlist_ids:
             self.download_playlist(playlist)
@@ -420,8 +449,10 @@ class ZSpotify:
                 disc_number_flag = True
 
         # Sanitize beforehand
-        artists = RespotUtils.sanitize_data(album['artists'])
-        album_name = RespotUtils.sanitize_data(f"{album['release_date']} - {album['name']}")
+        artists = RespotUtils.sanitize_data(album["artists"])
+        album_name = RespotUtils.sanitize_data(
+            f"{album['release_date']} - {album['name']}"
+        )
 
         print(f"Downloading {artists} - {album_name} album")
 
@@ -432,13 +463,14 @@ class ZSpotify:
             # Append disc number to filepath if more than 1 disc
             newBasePath = basepath
             if disc_number_flag:
-                disc_number = RespotUtils.sanitize_data(f"{self.zfill(song['disc_number'])}")
+                disc_number = RespotUtils.sanitize_data(
+                    f"{self.zfill(song['disc_number'])}"
+                )
                 newBasePath = basepath / disc_number
 
-            self.download_track(song['id'], newBasePath, "album")
+            self.download_track(song["id"], newBasePath, "album")
 
-        print(
-            f"Finished downloading {album['artists']} - {album['name']} album")
+        print(f"Finished downloading {album['artists']} - {album['name']} album")
         return True
 
     def download_artist(self, artist_id):
@@ -451,7 +483,7 @@ class ZSpotify:
             print("Artist has no albums")
             return False
         for album in albums:
-            self.download_album(album['id'])
+            self.download_album(album["id"])
             self.antiban_wait(self.antiban_album_time)
         print(f"Finished downloading {artist['name']} artist")
         return True
@@ -464,24 +496,24 @@ class ZSpotify:
         print("Downloading liked songs")
         basepath = self.music_dir / "Liked Songs"
         for song in songs:
-            self.download_track(song['id'], basepath, "liked_songs")
+            self.download_track(song["id"], basepath, "liked_songs")
         print("Finished downloading liked songs")
         return True
 
     def download_by_url(self, url):
         parsed_url = RespotUtils.parse_url(url)
-        if parsed_url['track']:
-            ret = self.download_track(parsed_url['track'])
-        elif parsed_url['playlist']:
-            ret = self.download_playlist(parsed_url['playlist'])
-        elif parsed_url['album']:
-            ret = self.download_album(parsed_url['album'])
-        elif parsed_url['artist']:
-            ret = self.download_artist(parsed_url['artist'])
-        elif parsed_url['episode']:
-            ret = self.download_episode(parsed_url['episode'])
-        elif parsed_url['show']:
-            ret = self.download_all_show_episodes(parsed_url['show'])
+        if parsed_url["track"]:
+            ret = self.download_track(parsed_url["track"])
+        elif parsed_url["playlist"]:
+            ret = self.download_playlist(parsed_url["playlist"])
+        elif parsed_url["album"]:
+            ret = self.download_album(parsed_url["album"])
+        elif parsed_url["artist"]:
+            ret = self.download_artist(parsed_url["artist"])
+        elif parsed_url["episode"]:
+            ret = self.download_episode(parsed_url["episode"])
+        elif parsed_url["show"]:
+            ret = self.download_all_show_episodes(parsed_url["show"])
         else:
             print("Invalid URL")
             return False
@@ -498,13 +530,13 @@ class ZSpotify:
             return False
         print(f"Downloading {episode['audio_name']} episode")
 
-        if not episode['is_playable']:
+        if not episode["is_playable"]:
             print(f"Skipping {episode['audio_name']} - Not Available")
             return True
 
         # Sanitize data beforehand
-        show_name = RespotUtils.sanitize_data(episode['show_name'])
-        audio_name = RespotUtils.sanitize_data(episode['audio_name'])
+        show_name = RespotUtils.sanitize_data(episode["show_name"])
+        audio_name = RespotUtils.sanitize_data(episode["audio_name"])
         audio_format = self.args.audio_format
 
         basepath = self.episodes_dir
@@ -520,9 +552,9 @@ class ZSpotify:
             print(f"Skipping {filename} - Already downloaded")
             return True
 
-        downloader = \
-            Thread(target=self.respot.download,
-                   args=(episode_id, fullpath, True))
+        downloader = Thread(
+            target=self.respot.download, args=(episode_id, fullpath, True)
+        )
         downloader.start()
 
         _filename = filename[:50]
@@ -530,33 +562,24 @@ class ZSpotify:
 
         while not self.respot.progress_bar:
             time.sleep(0.1)
-        with tqdm(
-                desc=filename,
-                total=self.respot.progress_bar['total'],
-                unit="B",
-                unit_scale=True,
-                unit_divisor=1024,
-        ) as progress_bar:
-            progress = self.respot.progress_bar
-            while progress:
-                progress_bar.update(progress['downloaded'] - progress_bar.n)
-                time.sleep(0.1)
-                progress = self.respot.progress_bar
-            progress_bar.update(progress_bar.total - progress_bar.n)
         print(f"Converting {episode['audio_name']} episode")
         downloader.join()
-        self.archive.add(episode_id,
-                         artist=episode['show_name'],
-                         track_name=episode['audio_name'],
-                         fullpath=fullpath,
-                         audio_type="episode")
-        print(f"Set audiotags {episode['audio_name']}")
-        self.tagger.set_audio_tags(fullpath,
-                            artists=episode['show_name'],
-                            name=episode['audio_name'],
-                            release_year=episode['release_year'],
-                            track_id_str=episode_id,
-                            image_url=episode['image_url'])
+        self.archive.add(
+            episode_id,
+            artist=episode["show_name"],
+            track_name=episode["audio_name"],
+            fullpath=fullpath,
+            audio_type="episode",
+        )
+        print(f"Setting audiotags {episode['audio_name']}")
+        self.tagger.set_audio_tags(
+            fullpath,
+            artists=episode["show_name"],
+            name=episode["audio_name"],
+            release_year=episode["release_year"],
+            track_id_str=episode_id,
+            image_url=episode["image_url"],
+        )
         print(f"Finished downloading {episode['audio_name']} episode")
 
     def download_all_show_episodes(self, show_id):
@@ -569,7 +592,7 @@ class ZSpotify:
             print("Show has no episodes")
             return False
         for episode in episodes:
-            self.download_episode(episode['id'], "show")
+            self.download_episode(episode["id"], "show")
         print(f"Finished downloading {show['name']} show")
         return True
 
@@ -587,27 +610,27 @@ class ZSpotify:
         print(f"{FormatUtils.GREEN}TRACKS{FormatUtils.RESET}")
         full_results = []
         i = 1
-        for result in results['tracks']:
+        for result in results["tracks"]:
             print(f"{i}. {result['artists']} - {result['name']}")
-            result['type'] = 'track'
+            result["type"] = "track"
             full_results.append(result)
             i += 1
         print(f"\n{FormatUtils.GREEN}ALBUMS{FormatUtils.RESET}")
-        for result in results['albums']:
+        for result in results["albums"]:
             print(f"{i}. {result['artists']} - {result['name']}")
-            result['type'] = 'album'
+            result["type"] = "album"
             full_results.append(result)
             i += 1
         print(f"\n{FormatUtils.GREEN}PLAYLISTS{FormatUtils.RESET}")
-        for result in results['playlists']:
+        for result in results["playlists"]:
             print(f"{i}. {result['name']}")
-            result['type'] = 'playlist'
+            result["type"] = "playlist"
             full_results.append(result)
             i += 1
         print(f"\n{FormatUtils.GREEN}ARTISTS{FormatUtils.RESET}")
-        for result in results['artists']:
+        for result in results["artists"]:
             print(f"{i}. {result['name']}")
-            result['type'] = 'artist'
+            result["type"] = "artist"
             full_results.append(result)
             i += 1
         print("")
@@ -622,28 +645,28 @@ class ZSpotify:
             return False
         if selection == "all":
             for result in full_results:
-                if result['type'] == 'track':
-                    self.download_track(result['id'])
-                elif result['type'] == 'album':
-                    self.download_album(result['id'])
-                elif result['type'] == 'playlist':
-                    self.download_playlist(result['id'])
-                elif result['type'] == 'artist':
-                    self.download_artist(result['id'])
+                if result["type"] == "track":
+                    self.download_track(result["id"])
+                elif result["type"] == "album":
+                    self.download_album(result["id"])
+                elif result["type"] == "playlist":
+                    self.download_playlist(result["id"])
+                elif result["type"] == "artist":
+                    self.download_artist(result["id"])
             return True
         for item in self.split_input(selection):
             if int(item) >= len(full_results) + 1:
                 print("Invalid selection")
                 return False
             result = full_results[int(item) - 1]
-            if result['type'] == 'track':
-                self.download_track(result['id'])
-            elif result['type'] == 'album':
-                self.download_album(result['id'])
-            elif result['type'] == 'playlist':
-                self.download_playlist(result['id'])
-            elif result['type'] == 'artist':
-                self.download_artist(result['id'])
+            if result["type"] == "track":
+                self.download_track(result["id"])
+            elif result["type"] == "album":
+                self.download_album(result["id"])
+            elif result["type"] == "playlist":
+                self.download_playlist(result["id"])
+            elif result["type"] == "artist":
+                self.download_artist(result["id"])
         return True
 
     def start(self):
@@ -656,10 +679,12 @@ class ZSpotify:
         while not self.login():
             print("Invalid credentials")
 
-        paths_to_check = (self.config_dir,
-                          self.download_dir,
-                          self.music_dir,
-                          self.episodes_dir)
+        paths_to_check = (
+            self.config_dir,
+            self.download_dir,
+            self.music_dir,
+            self.episodes_dir,
+        )
 
         self.archive.archive_migration(paths_to_check)
 
