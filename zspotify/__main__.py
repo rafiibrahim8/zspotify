@@ -53,6 +53,7 @@ class ZSpotify:
         self.skip_downloaded = self.args.skip_downloaded
         self.archive_file = self.config_dir / self.args.archive
         self.archive = Archive(self.archive_file)
+        self.tagger = AudioTagger()
 
     def parse_args(self):
         parser = argparse.ArgumentParser()
@@ -321,7 +322,8 @@ class ZSpotify:
                          audio_type="music")
         downloader.join()
         print(f"Set audiotags {filename}")
-        AudioTagger.set_audio_tags(fullpath,
+        print(fullpath)
+        self.tagger.set_audio_tags(fullpath,
                             artists=artist_name,
                             name=audio_name,
                             album_name=album_name,
@@ -550,7 +552,7 @@ class ZSpotify:
                          fullpath=fullpath,
                          audio_type="episode")
         print(f"Set audiotags {episode['audio_name']}")
-        AudioTagger.set_audio_tags(fullpath,
+        self.tagger.set_audio_tags(fullpath,
                             artists=episode['show_name'],
                             name=episode['audio_name'],
                             release_year=episode['release_year'],

@@ -7,24 +7,24 @@ class AudioTagger:
     def __init__(self):
         pass
 
-    def set_audio_tags(self, filename, artists=None, name=None, album_name=None, release_year=None,
+    def set_audio_tags(self, fullpath, artists=None, name=None, album_name=None, release_year=None,
                        disc_number=None, track_number=None, track_id_str=None, album_artist=None, image_url=None):
         """sets music_tag metadata using mutagen if possible"""
         
         album_artist = album_artist or artists  # Use artists if album_artist is None
 
-        extension = str(filename).split('.')[-1]
+        extension = str(fullpath).split('.')[-1]
 
         if extension == 'mp3':
-            self._set_mp3_tags(filename, artists, name, album_name, release_year, disc_number,
+            self._set_mp3_tags(fullpath, artists, name, album_name, release_year, disc_number,
                                track_number, track_id_str, album_artist, image_url)
         else:
-            self._set_other_tags(filename, artists, name, album_name, release_year, disc_number,
+            self._set_other_tags(fullpath, artists, name, album_name, release_year, disc_number,
                                  track_number, track_id_str, image_url)
 
-    def _set_mp3_tags(self, filename, artist, name, album_name, release_year, disc_number, 
+    def _set_mp3_tags(self, fullpath, artist, name, album_name, release_year, disc_number, 
                       track_number, track_id_str, album_artist, image_url):
-        tags = id3.ID3(filename)
+        tags = id3.ID3(fullpath)
 
         mp3_map = {
             "TPE1": artist,
@@ -49,9 +49,9 @@ class AudioTagger:
 
         tags.save()
 
-    def _set_other_tags(self, filename, artist, name, album_name, release_year, disc_number, 
+    def _set_other_tags(self, fullpath, artist, name, album_name, release_year, disc_number, 
                         track_number, track_id_str, image_url):
-        tags = music_tag.load_file(filename)
+        tags = music_tag.load_file(fullpath)
 
         other_map = {
             "artist": artist,
