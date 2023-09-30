@@ -322,7 +322,6 @@ class ZSpotify:
                          audio_type="music")
         downloader.join()
         print(f"Set audiotags {filename}")
-        print(fullpath)
         self.tagger.set_audio_tags(fullpath,
                             artists=artist_name,
                             name=audio_name,
@@ -575,6 +574,10 @@ class ZSpotify:
         return True
 
     def search(self, query):
+        if "https" in query:
+            self.download_by_url(query)
+            return True
+
         # TODO: Add search by artist, album, playlist, etc.
         results = self.respot.request.search(query, self.search_limit)
         if not results:
@@ -715,14 +718,15 @@ class ZSpotify:
                     for url in self.split_input(line.strip()):
                         self.download_by_url(url)
         else:
-            self.args.search = input("Search: ")
-            while self.args.search == "":
-                print("Please try again or press CTRL-C to terminate.")
+            while True:
                 self.args.search = input("Search: ")
-            if self.args.search:
-                self.search(self.args.search)
-            else:
-                print("Invalid input")
+                while self.args.search == "":
+                    print("Please try again or press CTRL-C to terminate.")
+                    self.args.search = input("Search: ")
+                if self.args.search:
+                    self.search(self.args.search)
+                else:
+                    print("Invalid input")
 
 
 def main():
