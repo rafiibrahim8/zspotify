@@ -658,7 +658,7 @@ class RespotTrackHandler:
         magic_bytes = audio_bytes.read(16)
 
         if magic_bytes.startswith(b'\xFF\xFB') or magic_bytes.startswith(b'\xFF\xFA'):
-            return 'wav'
+            return 'mp3'
         elif b'RIFF' in magic_bytes and b'WAVE' in magic_bytes:
             return 'wav'
         elif magic_bytes.startswith(b'fLaC'):
