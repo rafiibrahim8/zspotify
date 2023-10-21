@@ -4,6 +4,7 @@ import json
 import re
 import requests
 import time
+import shutil
 
 from librespot.audio.decoders import AudioQuality, VorbisOnlyAudioQuality
 from librespot.core import ApiClient, Session
@@ -89,7 +90,7 @@ class RespotAuth:
 
     # librespot does not have a function to store credentials.json correctly
     def _persist_credentials_file(self) -> None:
-        Path("credentials.json").rename(self.credentials)
+        shutil.move("credentials.json", self.credentials)
 
     def _ensure_credentials_directory(self) -> None:
         self.credentials.parent.mkdir(parents=True, exist_ok=True)
