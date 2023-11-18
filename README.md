@@ -72,7 +72,7 @@ options:
                         Downloads all show episodes from id or url
   -cd CONFIG_DIR, --config-dir CONFIG_DIR
                         Folder to save the config files  
-                        Deafult: *nix => $HOME/.zspotify Windows => (%homepath%)/.zspotify
+                        Default: *nix => $HOME/.zspotify Windows => (%homepath%)/.zspotify
   --archive ARCHIVE     File to save the downloaded files
   -d DOWNLOAD_DIR, --download-dir DOWNLOAD_DIR
                         Folder to save the downloaded files
@@ -87,7 +87,7 @@ options:
                         Time (seconds) to wait between downloads to avoid Ban
   --antiban-album ANTIBAN_ALBUM
                         Time (seconds) to wait between album downloads to avoid Ban
-  --limit LIMIT         Search Limit  
+  --limit LIMIT         Search Limit (seconds)
                         Imposes a search limit that is overridable with the environment variable LIMIT_RESULTS
                         Default: 10
   -f, --force-premium   Force premium account
@@ -98,7 +98,7 @@ options:
   -cf CREDENTIALS_FILE, --credentials-file CREDENTIALS_FILE
                         File to save the credentials  
                         Run once to create this file with your terminal input username and password.   
-                        Then move the file and change the directory with this command.
+                        Then move the file and change the directory with this argument.
   -bd BULK_DOWNLOAD, --bulk-download BULK_DOWNLOAD
                         Bulk download from file with urls
 ```
