@@ -295,7 +295,10 @@ class ZSpotify:
             print(f"Skipping {track_id} - Already Downloaded")
             return True
 
-        track = self.respot.request.get_track_info(track_id)
+        if caller == "show" or caller == "episode":
+            track = self.respot.request.get_episode_info(track_id)
+        else:
+            track = self.respot.request.get_track_info(track_id)
 
         if track is None:
             print(f"Skipping {track_id} - Could not get track info")
