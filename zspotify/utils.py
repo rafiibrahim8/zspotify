@@ -115,7 +115,7 @@ class FormatUtils:
 
     def sanitize_data(value: str) -> str:
         """Returns the string with problematic characters removed."""
-        SANITIZE_CHARS = ["\\", "/", ":", "*", "?", "'", "<", ">", '"', "|"]
+        SANITIZE_CHARS = ["\\", "/", "*", "<", ">", "|"]
 
         for char in SANITIZE_CHARS:
             value = value.replace(char, "" if char != "|" else "-")

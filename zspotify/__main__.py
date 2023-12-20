@@ -15,7 +15,7 @@ except ImportError:
     from .tagger import AudioTagger
     from .utils import FormatUtils, Archive
 
-_ANTI_BAN_WAIT_TIME = os.environ.get("ANTI_BAN_WAIT_TIME", 5)
+_ANTI_BAN_WAIT_TIME = os.environ.get("ANTI_BAN_WAIT_TIME", 10)
 _ANTI_BAN_WAIT_TIME_ALBUMS = os.environ.get("ANTI_BAN_WAIT_TIME_ALBUMS", 30)
 _LIMIT_RESULTS = os.environ.get("LIMIT_RESULTS", 10)
 
@@ -133,7 +133,7 @@ class ZSpotify:
             "-af",
             "--audio-format",
             help="Audio format to download the tracks. Use 'source' to preserve the source format without conversion.",
-            default="mp3",
+            default="source",
             choices=["mp3", "ogg", "source"],
         )
         parser.add_argument(
