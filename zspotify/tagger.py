@@ -1,13 +1,15 @@
-import music_tag
 import requests
+import base64
 from mutagen import id3
+from mutagen.flac import Picture
+from mutagen._file import File
 
 class AudioTagger:
     
     def __init__(self):
         pass
 
-    def set_audio_tags(self, fullpath, artists=None, name=None, album_name=None, release_year=None,
+    def set_audio_tags(self, fullpath, full_info, artists=None, name=None, album_name=None, release_year=None,
                        disc_number=None, track_number=None, track_id_str=None, album_artist=None, image_url=None):
         """sets music_tag metadata using mutagen if possible"""
         
@@ -19,7 +21,7 @@ class AudioTagger:
             self._set_mp3_tags(fullpath, artists, name, album_name, release_year, disc_number,
                                track_number, track_id_str, album_artist, image_url)
         else:
-            self._set_other_tags(fullpath, artists, name, album_name, release_year, disc_number,
+            self._set_other_tags(fullpath, full_info, artists, name, album_name, release_year, disc_number,
                                  track_number, track_id_str, image_url)
 
     def _set_mp3_tags(self, fullpath, artist, name, album_name, release_year, disc_number, 
@@ -49,27 +51,53 @@ class AudioTagger:
 
         tags.save()
 
-    def _set_other_tags(self, fullpath, artist, name, album_name, release_year, disc_number, 
-                        track_number, track_id_str, image_url):
-        tags = music_tag.load_file(fullpath)
+    def get_album_artists(self, track_info):
+        return ", ".join([artist["name"] for artist in track_info["album"]["artists"]])
 
-        other_map = {
+    def _set_other_tags(self, fullpath, full_info, artist, name, album_name, release_year, disc_number, 
+                        track_number, track_id_str, image_url):
+        
+        track_info = full_info["tracks"][0]
+        total_tracks = track_info["album"]["total_tracks"]
+        
+        tags = File(fullpath, easy=False)
+
+        tag_map = {
             "artist": artist,
-            "tracktitle": name,
+            "albumartist": self.get_album_artists(track_info),
+            "title": name,
+            "date": track_info["album"]["release_date"],
+            "encodedby": "Spotify",
             "album": album_name,
-            "year": release_year,
+            "comment": "https://open.spotify.com/track/" + track_id_str if track_id_str else None,
             "discnumber": str(disc_number) if disc_number else None,
-            "tracknumber": track_number,
-            "comment": "https://open.spotify.com/track/" + track_id_str if track_id_str else None
+            "tracknumber": str(track_number).strip().zfill(len(str(total_tracks))),
+            "tracktotal": str(total_tracks),
+            "woas": "https://open.spotify.com/track/" + track_id_str if track_id_str else None,
+            "isrc": track_info["external_ids"]["isrc"],
         }
 
-        for tag, value in other_map.items():
-            if value:
+        for tag, value in tag_map.items():
+            if value is not None:
                 tags[tag] = value
 
         if image_url:
-            albumart = requests.get(image_url).content
-            if albumart:
-                tags["artwork"] = albumart
+            res = requests.get(image_url)
+            assert res.status_code < 300, f"Error downloading album art: {res.status_code}"
+            
+            picture = Picture()
+            picture.type = 3
+            picture.desc = "Cover"
+            picture.mime = res.headers["Content-Type"]
+            picture.data = res.content
+            image_data = picture.write()
 
-        tags.save()
+            encoded_data = base64.b64encode(image_data)
+            vcomment_value = encoded_data.decode("ascii")
+            tags["metadata_block_picture"] = [vcomment_value]
+        
+        try:
+            tags.save()
+        except Exception as e:
+            if 'unable to read full header' not in str(e):
+                raise

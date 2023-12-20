@@ -208,7 +208,7 @@ class RespotRequest:
                 "scraped_song_id": info["tracks"][0]["id"],
                 "is_playable": info["tracks"][0]["is_playable"],
                 "release_date": info["tracks"][0]["album"]["release_date"],
-            }
+            }, info
 
         except Exception as e:
             print("###   get_track_info - FAILED TO QUERY METADATA   ###")
@@ -437,7 +437,7 @@ class RespotRequest:
             "scraped_episode_id": ["id"],
             "is_playable": info["is_playable"],
             "release_date": info["release_date"],
-        }
+        }, info
 
     def get_show_episodes(self, show_id):
         """returns episodes of a show"""

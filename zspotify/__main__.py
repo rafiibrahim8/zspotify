@@ -109,13 +109,13 @@ class ZSpotify:
             "-d",
             "--download-dir",
             help="Folder to save the downloaded files",
-            default=Path.home() / "Music",
+            default=Path.cwd(),
         )
         parser.add_argument(
             "-md",
             "--music-dir",
             help="Folder to save the downloaded music files",
-            default=Path.home() / "Music" / "ZSpotify Music",
+            default=Path.cwd(),
         )
         parser.add_argument(
             "-pd",
@@ -296,9 +296,9 @@ class ZSpotify:
             return True
 
         if caller == "show" or caller == "episode":
-            track = self.respot.request.get_episode_info(track_id)
+            track, full_info = self.respot.request.get_episode_info(track_id)
         else:
-            track = self.respot.request.get_track_info(track_id)
+            track, full_info = self.respot.request.get_track_info(track_id)
 
         if track is None:
             print(f"Skipping {track_id} - Could not get track info")
@@ -332,6 +332,7 @@ class ZSpotify:
                 print(f"Skipping {filename + ext} - Already downloaded")
                 return True
 
+        print(f"Downloading {filename} with format: {FormatUtils.RED}{self.args.audio_format}{FormatUtils.RESET}.")
         output_path = self.respot.download(
             track_id, temp_path, self.args.audio_format, True
         )
@@ -350,6 +351,7 @@ class ZSpotify:
         print(f"Setting audiotags {filename}")
         self.tagger.set_audio_tags(
             output_path,
+            full_info,
             artists=artist_name,
             name=audio_name,
             album_name=album_name,
