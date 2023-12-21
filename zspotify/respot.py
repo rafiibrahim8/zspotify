@@ -12,6 +12,11 @@ from librespot.metadata import TrackId, EpisodeId
 from pydub import AudioSegment
 from tqdm import tqdm
 
+try:
+    from .utils import FormatUtils
+except ImportError:
+    from utils import FormatUtils
+
 
 API_ME = "https://api.spotify.com/v1/me/"
 
@@ -790,9 +795,4 @@ class RespotUtils:
 
     @staticmethod
     def sanitize_data(value: str) -> str:
-        """Returns the string with problematic characters removed."""
-        SANITIZE_CHARS = ["\\", "/", ":", "*", "?", "'", "<", ">", '"', "|"]
-
-        for char in SANITIZE_CHARS:
-            value = value.replace(char, "" if char != "|" else "-")
-        return value
+        return FormatUtils.sanitize_data(value)
