@@ -14,8 +14,10 @@ from tqdm import tqdm
 
 try:
     from .utils import FormatUtils
+    from .webapi_compat import get_track
 except ImportError:
     from utils import FormatUtils
+    from webapi_compat import get_track
 
 
 API_ME = "https://api.spotify.com/v1/me/"
@@ -178,13 +180,7 @@ class RespotRequest:
     def get_track_info(self, track_id) -> dict:
         """Retrieves metadata for downloaded songs"""
         try:
-            info = json.loads(
-                self.authorized_get_request(
-                    "https://api.spotify.com/v1/tracks?ids="
-                    + track_id
-                    + "&market=from_token"
-                ).text
-            )
+            info = {"tracks": [get_track(track_id, self.auth.session)]}
 
             # Sum the size of the images, compares and saves the index of the
             # largest image size
