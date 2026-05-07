@@ -1,5 +1,16 @@
 # Changelog
 
+**v3.0.0 (07 May 2026)**
+- Added pipx-first installation instructions for `git+https://github.com/rafiibrahim8/zspotify.git`.
+- Updated package metadata for the 3.0.0 release.
+- Pinned `librespot-python` to a specific commit for reproducible installs.
+- Switched track metadata lookup to the internal librespot metadata helper.
+- Added Spotify lyrics retrieval and improved lyric tagging for supported formats.
+- Removed the `pydub` dependency and converted audio through FFmpeg directly.
+- Preserved source audio by default with the `--audio-format source` option.
+- Improved token refresh handling for authenticated Spotify API requests.
+- Rewrote the README to match the current CLI, output layout, archive behavior, and dependency requirements.
+
 **v2.1.0 (29 Sep 2023)**
 - Use never python Docker image
 - Rewrite classes, separate functionality

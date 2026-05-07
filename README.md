@@ -1,125 +1,279 @@
 # ZSpotify
 
-[![Docker CI](https://github.com/jsavargas/zspotify/actions/workflows/docker-ci.yml/badge.svg)](https://github.com/jsavargas/zspotify/actions/workflows/docker-ci.yml)
-[![GPLv3](https://img.shields.io/github/license/jsavargas/zspotify)](https://opensource.org/license/gpl-3-0)
+[![GPLv3](https://img.shields.io/github/license/rafiibrahim8/zspotify)](https://opensource.org/license/gpl-3-0)
 
-ZSpotify is a Spotify downloader that enables users to find and download songs.
+ZSpotify is a command-line Spotify downloader. It can search Spotify or download
+tracks, albums, playlists, artists, liked songs, podcast episodes, and complete
+shows from Spotify URLs, Spotify URIs, or item IDs.
 
+This fork uses `librespot-python` for Spotify login and audio retrieval, writes
+metadata with `mutagen`, stores a JSON download archive, supports embedded
+lyrics when Spotify returns them, and can either save the source audio stream or
+convert it with FFmpeg.
+
+## Requirements
+
+- Python 3.9 or newer
+- [pipx](https://pipx.pypa.io/) for isolated CLI installation
+- FFmpeg available on `PATH` when converting audio to `mp3` or `ogg`
+- A Spotify account
+
+`--audio-format source` is the default and preserves the downloaded stream
+without conversion. FFmpeg is still recommended, but it is only required when
+you request conversion.
 
 ## Installation
 
-Install ZSpotify using either [pip](#pip) or [Docker](#docker)
+### pipx recommended
+
+`pipx` is recommended because it installs ZSpotify as an isolated command-line
+app without mixing its dependencies into your project or system Python.
+
+Install the current GitHub version:
+
+```bash
+pipx install git+https://github.com/rafiibrahim8/zspotify.git
+```
+
+Upgrade an existing pipx install:
+
+```bash
+pipx upgrade zspotify
+```
+
+If the `zspotify` command is not found after installation, make sure pipx's bin
+directory is on your `PATH`:
+
+```bash
+pipx ensurepath
+```
 
 ### pip
 
-1. **Install required dependencies:**
-    - Python (3.10 or greater)
-        - [Python download (Windows)](https://www.python.org/downloads/)
-    - FFmpeg
-        - [FFmpeg download (Windows)](https://ffmpeg.org/download.html)
-        - [FFmpeg installation guide (Windows)](https://www.wikihow.com/Install-FFmpeg-on-Windows)
-   > :warning: To install Python and FFmpeg on **Linux**, use the preferred package manager for your distribution.
+You can also install with pip. This is useful inside a virtual environment,
+container, or other Python environment you manage yourself.
 
-2. **Install ZSpotify:**
+Create and activate a virtual environment:
 
 ```bash
-pip install git+https://github.com/jsavargas/zspotify
+python -m venv .venv
+source .venv/bin/activate
 ```
 
-### Docker
+On Windows PowerShell, activate it with:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+Then install ZSpotify:
 
 ```bash
-docker pull jsavargas/zspotify
-docker run -v ${HOME}/.zspotify:/root/.zspotify -v ${HOME}/Music:/root/Music -it jsavargas/zspotify
+pip install git+https://github.com/rafiibrahim8/zspotify.git
 ```
-***PLEASE NOTE 🗒️***
-You must first run zspotify locally and authenticate. Migrate your authentication file (credentials.json) into the .zspotify volume on your docker system so that it can be used on start.  
-  Otherwise your Docker run will fail due to it trying to recieve a username input that it will never get.
 
+Upgrade a pip install:
 
+```bash
+pip install --upgrade git+https://github.com/rafiibrahim8/zspotify.git
+```
+
+## First Run
+
+Run ZSpotify once and sign in when prompted:
+
+```bash
+zspotify
+```
+
+By default, credentials are saved to:
+
+```text
+~/.zspotify/credentials.json
+```
+
+Use `--config-dir` to change the config directory, or `--credentials-file` to
+point at a specific credentials file.
+
+ZSpotify auto-detects Spotify account type. Premium accounts use very high
+quality; free accounts use high quality. `--force-premium` overrides that
+detection.
 
 ## Usage
 
+Search interactively:
+
+```bash
+zspotify "artist or song name"
 ```
-usage: zspotify [-h] [-ap] [-sp] [-ls] [-pl PLAYLIST] [-tr TRACK] [-al ALBUM] [-ar ARTIST] [-ep EPISODE]
-                [-fs FULL_SHOW] [-cd CONFIG_DIR] [--archive ARCHIVE] [-d DOWNLOAD_DIR] [-md MUSIC_DIR]
-                [-pd EPISODES_DIR] [-v] [-af {mp3,ogg}] [--album-in-filename] [--antiban-time ANTIBAN_TIME]
-                [--antiban-album ANTIBAN_ALBUM] [--limit LIMIT] [-f] [-ns] [-s] [-cf CREDENTIALS_FILE]
-                [-bd BULK_DOWNLOAD]
+
+Download by URL:
+
+```bash
+zspotify "https://open.spotify.com/track/..."
+zspotify "https://open.spotify.com/album/..."
+zspotify "https://open.spotify.com/playlist/..."
+```
+
+Download by ID or URL with explicit options:
+
+```bash
+zspotify --track TRACK_ID_OR_URL
+zspotify --album ALBUM_ID_OR_URL
+zspotify --playlist PLAYLIST_ID_OR_URL
+zspotify --artist ARTIST_ID_OR_URL
+zspotify --episode EPISODE_ID_OR_URL
+zspotify --full-show SHOW_ID_OR_URL
+```
+
+Download library items:
+
+```bash
+zspotify --liked-songs
+zspotify --all-playlists
+zspotify --select-playlists
+```
+
+Bulk download from a text file containing Spotify URLs:
+
+```bash
+zspotify --bulk-download urls.txt
+```
+
+Multiple IDs or URLs can be separated with commas or semicolons:
+
+```bash
+zspotify --track "TRACK_ID_1,TRACK_ID_2"
+zspotify --album "ALBUM_ID_1;ALBUM_ID_2"
+```
+
+## CLI Reference
+
+```text
+usage: zspotify [-h] [-ap] [-sp] [-ls] [-pl PLAYLIST] [-tr TRACK]
+                [-al ALBUM] [-ar ARTIST] [-ep EPISODE] [-fs FULL_SHOW]
+                [-cd CONFIG_DIR] [--archive ARCHIVE] [-d DOWNLOAD_DIR]
+                [-md MUSIC_DIR] [-pd EPISODES_DIR] [-v]
+                [-af {mp3,ogg,source}] [--album-in-filename]
+                [--antiban-time ANTIBAN_TIME]
+                [--antiban-album ANTIBAN_ALBUM] [--limit LIMIT] [-f] [-ns]
+                [-s] [-cf CREDENTIALS_FILE] [-bd BULK_DOWNLOAD]
                 [search]
 
 positional arguments:
-  search                Searches for a track, album, artist or playlist or download by url
+  search                Search for a track, album, artist, or playlist, or
+                        download by URL
 
 options:
-  -h, --help            Show this help message and exit
-  -v, --version         Shows the current version of ZSpotify
-  -ap, --all-playlists  Downloads all saved playlist from your library
+  -h, --help            Show help and exit
+  -v, --version         Show the current ZSpotify version and exit
+  -ap, --all-playlists  Download all saved playlists from your library
   -sp, --select-playlists
-                        Downloads a saved playlist from your library
-  -ls, --liked-songs    Downloads your liked songs
+                        Select saved playlists from your library to download
+  -ls, --liked-songs    Download your liked songs
   -pl PLAYLIST, --playlist PLAYLIST
-                        Download playlist by id or url
+                        Download playlist by ID or URL
   -tr TRACK, --track TRACK
-                        Downloads a track from their id or url
+                        Download track by ID or URL
   -al ALBUM, --album ALBUM
-                        Downloads an album from their id or url
+                        Download album by ID or URL
   -ar ARTIST, --artist ARTIST
-                        Downloads an artist from their id or url
+                        Download all albums, compilations, and singles from an
+                        artist by ID or URL
   -ep EPISODE, --episode EPISODE
-                        Downloads a episode from their id or url
+                        Download podcast episode by ID or URL
   -fs FULL_SHOW, --full-show FULL_SHOW
-                        Downloads all show episodes from id or url
+                        Download all show episodes by ID or URL
   -cd CONFIG_DIR, --config-dir CONFIG_DIR
-                        Folder to save the config files  
-                        Default: *nix => $HOME/.zspotify Windows => (%homepath%)/.zspotify
-  --archive ARCHIVE     File to save the downloaded files
+                        Folder for config files; default: ~/.zspotify
+  --archive ARCHIVE     Archive filename inside the config directory; default:
+                        archive.json
   -d DOWNLOAD_DIR, --download-dir DOWNLOAD_DIR
-                        Folder to save the downloaded files
+                        General download directory; default: current directory
   -md MUSIC_DIR, --music-dir MUSIC_DIR
-                        Folder to save the downloaded music files
+                        Music download directory; default: current directory
   -pd EPISODES_DIR, --episodes-dir EPISODES_DIR
-                        Folder to save the downloaded episodes files
-  -af {mp3,ogg}, --audio-format {mp3,ogg}
-                        Audio format to download the tracks
-  --album-in-filename   Adds the album name to the filename
+                        Podcast episode directory; default:
+                        ~/Music/ZSpotify Podcast
+  -af {mp3,ogg,source}, --audio-format {mp3,ogg,source}
+                        Audio format: mp3, ogg, or source; default: source
+  --album-in-filename   Include album name in generated filenames
   --antiban-time ANTIBAN_TIME
-                        Time (seconds) to wait between downloads to avoid Ban
+                        Seconds to wait between downloads; default: 10
   --antiban-album ANTIBAN_ALBUM
-                        Time (seconds) to wait between album downloads to avoid Ban
-  --limit LIMIT         Search Limit (seconds)
-                        Imposes a search limit that is overridable with the environment variable LIMIT_RESULTS
-                        Default: 10
-  -f, --force-premium   Force premium account
+                        Seconds to wait between album, artist, or playlist
+                        batches; default: 30
+  --limit LIMIT         Search result limit; default: 10
+  -f, --force-premium   Force premium quality handling
   -ns, --not-skip-existing
-                        If flag setted NOT Skip existing already downloaded tracks
+                        Do not skip existing files
   -s, --skip-downloaded
-                        Skip already downloaded songs if exist in archive even it is doesn't exist in the filesystem
+                        Skip IDs already present in the archive, even if the
+                        file is missing from disk
   -cf CREDENTIALS_FILE, --credentials-file CREDENTIALS_FILE
-                        File to save the credentials  
-                        Run once to create this file with your terminal input username and password.   
-                        Then move the file and change the directory with this argument.
+                        Credentials file path; default:
+                        ~/.zspotify/credentials.json
   -bd BULK_DOWNLOAD, --bulk-download BULK_DOWNLOAD
-                        Bulk download from file with urls
+                        Download URLs listed in a text file
 ```
+
+## Output Layout
+
+Music downloads are written under `--music-dir`.
+
+- Albums: `Artist/YYYY - Album/Track Number. Track Name`
+- Multi-disc albums: `Artist/YYYY - Album/Disc Number/Track Number. Track Name`
+- Playlists: `Playlist Name/Track Name`
+- Liked songs: `Liked Songs/Artist - Track Name`
+
+Podcast episodes are written under `--episodes-dir`.
+
+Filenames are sanitized for common filesystem-problematic characters. Very long
+filenames are shortened.
+
+## Archive
+
+Downloaded items are tracked in `archive.json` inside the config directory by
+default. Use `--skip-downloaded` to skip anything already recorded there.
+
+Older `.song_archive` files are migrated automatically from the configured
+download paths when ZSpotify starts.
+
+## Environment Variables
+
+These environment variables provide defaults that can still be overridden with
+CLI options:
+
+```text
+ANTI_BAN_WAIT_TIME=10
+ANTI_BAN_WAIT_TIME_ALBUMS=30
+LIMIT_RESULTS=10
+```
+
+## Notes
+
+- Search currently returns tracks, albums, playlists, and artists.
+- Podcast episodes and shows are supported by direct ID, URL, or URI.
+- Spotify lyrics are embedded when available. Unsynced lyrics are written as
+  plain lyrics; line-synced lyrics are written as synced/LRC-style metadata
+  where the target file format supports it.
 
 ## Changelog
 
-[View changelog here](https://github.com/jsavargas/zspotify/blob/master/CHANGELOG.md)
+See [CHANGELOG.md](CHANGELOG.md).
 
 ## Disclaimer
 
-We recommend using a burner account to avoid any possible account bans.
+This project is intended for personal use with content you are allowed to
+access. Spotify may restrict or ban accounts that violate its terms. Use a
+secondary account if you are concerned about account risk.
 
-## Contributing
+## License
 
-Pull requests are welcome. For major changes, please open an issue first
-to discuss what you would like to change.
-
-- [GitHub Issues](https://github.com/jsavargas/zspotify/issues) of this repository.
-- [DockerHub](https://hub.docker.com/r/jsavargas/zspotify) of this repository.
-- [Discord](https://discord.gg/grCt4AufmC) server of this repository.
+ZSpotify is licensed under GPL-3.0-only. See [LICENSE](LICENSE).
 
 ## Acknowledgements
 
-- [Footsiefat](https://github.com/Footsiefat) for original ZSpotify implementation
+- [Footsiefat](https://github.com/Footsiefat) for the original ZSpotify
+  implementation
+- The upstream ZSpotify contributors whose work this fork builds on
