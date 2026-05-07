@@ -1,4 +1,4 @@
-git+https://github.com/kokarare1212/librespot-python
+librespot @ git+https://github.com/kokarare1212/librespot-python@18104622b3be02062f1f8abe8dafc396413e9784
 appdirs
 mutagen
 pydub
