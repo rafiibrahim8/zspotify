@@ -1,0 +1,25 @@
+target-version = "py311"
+line-length = 100
+
+[format]
+quote-style = "single"
+indent-style = "space"
+docstring-code-format = true
+
+[lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "B",    # flake8-bugbear
+    "UP",   # pyupgrade
+    "SIM",  # flake8-simplify
+    "RUF",  # ruff-specific rules
+]
+ignore = [
+    "E501",  # line too long — formatter handles it
+]
+
+[lint.isort]
+known-first-party = []
