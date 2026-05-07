@@ -1,6 +1,7 @@
 import json
 import re
 import shutil
+import subprocess
 import time
 from io import BytesIO
 from pathlib import Path
@@ -9,7 +10,6 @@ import requests
 from librespot.audio.decoders import AudioQuality, VorbisOnlyAudioQuality
 from librespot.core import ApiClient, Session
 from librespot.metadata import EpisodeId, TrackId
-from pydub import AudioSegment
 from tqdm import tqdm
 
 try:
@@ -72,8 +72,7 @@ class Respot:
         else:
             output_str = filename + '.' + extension
             output_path = temp_path.parent / output_str
-            print(f'Converting {filename} to {extension}')
-            handler.convert_audio_format(audio_bytes, output_path)
+            handler.convert_audio_format(audio_bytes, output_path, filename)
 
         return output_path
 
@@ -624,16 +623,27 @@ class RespotTrackHandler:
             print(track_id, filename)
             return None
 
-    def convert_audio_format(self, audio_bytes: BytesIO, output_path: Path) -> None:
-        """Converts raw audio (ogg vorbis) to user specified format"""
-        # Make sure stream is at the start or else AudioSegment will act up
+    def convert_audio_format(self, audio_bytes: BytesIO, output_path: Path, filename: str) -> None:
+        """Convert raw OGG Vorbis to the user-specified format via ffmpeg."""
         audio_bytes.seek(0)
+        bitrate = '320k' if self.quality == AudioQuality.VERY_HIGH else '160k'
 
-        bitrate = '160k'
-        if self.quality == AudioQuality.VERY_HIGH:
-            bitrate = '320k'
-
-        AudioSegment.from_file(audio_bytes).export(output_path, format=self.format, bitrate=bitrate)
+        print(f'Converting {filename} to {self.format} with bitrate {bitrate} using ffmpeg...')
+        subprocess.run(
+            [
+                'ffmpeg',
+                '-y',
+                '-i',
+                'pipe:0',
+                '-b:a',
+                bitrate,
+                str(output_path),
+            ],
+            input=audio_bytes.read(),
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
 
     def bytes_to_file(self, audio_bytes: BytesIO, output_path: Path) -> None:
         output_path.write_bytes(audio_bytes.getvalue())

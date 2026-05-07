@@ -24,7 +24,6 @@ dependencies = [
     "appdirs",
     "mutagen",
     "music_tag",
-    "pydub",
     "Pillow",
     "tqdm",
 ]
